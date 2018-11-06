@@ -1,80 +1,91 @@
 var express = require('express');
 var router = express.Router();
+var commonmark = require('commonmark');
 const assert = require('assert');
 
+const markdownRender = function(post) {
+	var reader = new commonmark.Parser();
+	var writer = new commonmark.HtmlRenderer();
+	var parsed = reader.parse(post.title);
+	renderedTitle = writer.render(parsed);
+	parsed = reader.parse(post.body);
+	renderedBody = writer.render(parsed);
+	return [renderedTitle, renderedBody]
+}
 
-router.get('/:username/:postid', function (req, res, next) {
-	const collection = req.app.db.collection('Posts');
-	
-	collection.find({ "username": req.params.username, "postid": parseInt(req.params.postid) }).toArray(function (err, results) {
-		assert.equal(err, null);
-		
-		console.log("Post with postid = " + req.params.postid + " by user " + req.params.username);
-		console.log(results);
-		
-		res.render('blog', {
-			username: req.params.username,
-			posts: results,
-			next: null
-		});
-	});
-	
-});
+const getPosts = function(collection, username, callback) {
+	collection.find({"username": username}).toArray(function(err, posts) {
+    callback(posts);
+  });
+}
 
-router.get('/:username', function (req, res, next) { 
+const getPost = function(collection, username, postid, callback) {
+	collection.findOne({ "username": username, "postid": parseInt(postid) })
+	.then(callback);
+}
+
+//GET blog
+router.get('/:username/:postid', function(req, res, next) {
 	const collection = req.app.db.collection('Posts');
-	// If there is a start id
-	if (req.query.start != null) {
-		//find posts with postid >= start	
-		collection.find({ "username": req.params.username, "postid": {$gte: parseInt(req.query.start)} })
-				  .toArray(function (err, results) {
-			var docs = results;
-			var next = null;
-			if (results.length > 5){
-				// return the first 5 elements
-				var docs = results.slice(0, 5);	
-				next = results[5].postid;
-			}
-			assert.equal(err, null);
-			console.log("Posts starting from postid: " + req.query.start + " by user " + req.params.username);
-			console.log(docs);
-			
+	getPost(collection, req.params.username, req.params.postid, function(post) {
+		if (post != null) {
+			let renderedPosts = new Array();
+			renderedPosts[0] = post;
+			rendered = markdownRender(renderedPosts[0]);
+			renderedPosts[0].title = renderedTitle;
+			renderedPosts[0].body = renderedBody;
+		    res.status(200);
 			res.render('blog', {
 				username: req.params.username,
-				posts: docs,
-				next: next
-			});
-		});
-	}
-	else {
-		collection.find({ 'username': req.params.username }).toArray(function (err, results) {
-			var docs = results;
-			var next = null;
-			if (results.length > 5){
-				// return the first 5 elements
-				var docs = results.slice(0, 5);
-				next = results[5].postid;
-			}
-			assert.equal(err, null);
-			console.log("Posts of user " + req.params.username);
-			console.log(docs);
-			
-			res.render('blog', {
-				username: req.params.username,
-				posts: docs,
-				next: next
-			});
-		});
-	}
-	
+				posts: renderedPosts,
+				next: null
+			});		    
+		} else {
+			res.status(404);
+			res.send("There is no post to fetch.");
+		}
+	 });
 });
 
+const PostNum = 5;  // number of posts shown on one page
 
-// catch 404 and forward to error handler
-router.use(function(req, res, next) {
-  var err = new Error('Not Found');
-  err.status = 404;
-  next(err);
+//GET blogs
+router.get('/:username', function(req, res, next) {
+	const collection = req.app.db.collection('Posts');
+	getPosts(collection, req.params.username, function(posts) {
+    	let startid = req.query.start;
+    	if (startid === undefined) {
+    		startid = 1;
+    	}
+	  
+    	// find the index of the post with startid in the posts array
+    	let i = 0;
+    	for (; i < posts.length; i++) {
+    		if (posts[i].postid >= startid) {
+    			break;
+    		}
+    	}
+
+    	let next = null;
+    	if (i + PostNum < posts.length){ 
+    		// has next page
+    		next = posts[i + PostNum].postid;
+    	}
+    	let slicedPosts = posts.slice(i, i + PostNum);
+    	let renderedPosts = new Array();
+    	for (let i = 0; i < slicedPosts.length; i++){
+    		renderedPosts[i] = slicedPosts[i];   		
+			rendered = markdownRender(slicedPosts[i]);
+    		renderedPosts[i].title = renderedTitle;
+    		renderedPosts[i].body = renderedBody;
+    	}
+	
+    	res.render('blog', {
+    		username: req.params.username,
+    		posts: renderedPosts,
+			next: next
+		});
+    });
 });
 
 module.exports = router;
