@@ -9,6 +9,7 @@ var index = require('./routes/index');
 var users = require('./routes/users');
 var blog = require('./routes/blog');
 var login = require('./routes/login');
+var api = require('./routes/api');
 var app = express();
 
 // view engine setup
@@ -32,13 +33,17 @@ MongoClient.connect(url,{ useNewUrlParser: true }, function(err, client) {
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
 
 app.use('/', index);
 app.use('/users', users);
 app.use('/blog', blog);
 app.use('/login', login);
+app.use('/api', api)
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
