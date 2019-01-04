@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Blog</title>
+	</head>
+	<body>
+		<header>
+			<a>
+				<h1><%= username %>'s Posts</h1>
+			</a>
+		</header>
+		<br>
+	    <div>
+			<ul>
+        	<% for (let post of posts) { %>
+            	<li>
+                	Postid:<%= post.postid %><br><br>
+                	Created:<%= new Date(post.created) %><br><br>
+					Modified:<%= new Date(post.modified) %><br><br>
+            		Title:<%- post.title %>
+            		Body:<%- post.body %>
+           		</li>
+      		<% } %>
+  			</ul>
+		</div>
+		
+		<div>
+		<% if ( next != null ) { %>
+			<a href='/blog/<%= username %>?start=<%= next %>' id = "next">Next</a>
+		<% } %>
+		</div>
+
+	</body>
+</html>
